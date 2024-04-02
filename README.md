@@ -16,3 +16,7 @@ This we need
 * A page where the live commentary writer can add a new message
     ** On that page we should show the latest events and have a button to generate an AI message
     ** A way to bring in stats related to the players/tournament/etc
+
+An example of what the live page should look like:
+
+https://www.bbc.co.uk/sport/live/tennis/66006317/page/4
