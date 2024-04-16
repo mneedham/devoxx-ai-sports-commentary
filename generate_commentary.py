@@ -10,11 +10,19 @@ Pull out things that you think are interesting including the length of the game 
 Write in the present tense and in a way that's accessible to your average tennis fan.
 """
 
-with jsonlines.open('events.json') as reader:
+with jsonlines.open('data/events.json') as reader:
     events = [row for row in reader]
 
+events_by_game = []
+game = []
+for event in events:
+    game.append(event)
+    if event['point_score'] == 'FINISH':
+        events_by_game.append(game)
+        game = []
+
 response = client.chat.completions.create(
-  model="gpt-3.5-turbo",
+  model="gpt-4",
   messages=[
     {
       "role": "system",
@@ -22,7 +30,7 @@ response = client.chat.completions.create(
     },
     {
       "role": "user",
-      "content": "\n".join([str(item) for item in events[:6]])
+      "content": "\n".join([str(item) for item in events_by_game[2]])
     }
   ],
   stream=True
