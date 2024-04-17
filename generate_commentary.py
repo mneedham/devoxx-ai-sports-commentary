@@ -30,7 +30,7 @@ response = client.chat.completions.create(
     },
     {
       "role": "user",
-      "content": "\n".join([str(item) for item in events_by_game[2]])
+      "content": "\n".join([str(item) for item in events_by_game[10]])
     }
   ],
   stream=True
