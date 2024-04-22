@@ -20,3 +20,10 @@ This we need
 An example of what the live page should look like:
 
 https://www.bbc.co.uk/sport/live/tennis/66006317/page/4
+
+
+```bash
+poetry run python publish_events.py | 
+jq -cr --arg sep 😊 '[.eventId, tostring] | join($sep)' |
+kcat -P -b localhost:9092 -t events -K😊
+```
