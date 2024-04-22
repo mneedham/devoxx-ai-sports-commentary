@@ -27,6 +27,7 @@ asyncio = "^3.4.3"
 fastapi = "^0.110.2"
 uvicorn = "^0.29.0"
 sse-starlette = "^2.1.0"
+aiokafka = "^0.10.0"
 
 
 [build-system]
