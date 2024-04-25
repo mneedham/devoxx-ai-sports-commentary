@@ -1,6 +1,5 @@
 import streamlit as st
 from streamlit_modal import Modal
-import pysondb
 import datetime
 import streamlit_float
 import time
@@ -25,7 +24,6 @@ hr {
 
 streamlit_float.float_init()
 
-db = pysondb.db.getDb('data/livetext.json')
 client = clickhouse_connect.get_client(host='localhost')
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
@@ -34,7 +32,6 @@ producer = KafkaProducer(
 )
 
 st.title("Live Text Commentary Admin Centre")
-
 
 matches = client.query_df("""
 select match_id, p1_name, p2_name
@@ -92,7 +89,6 @@ with right:
         else:
             now = datetime.datetime.now().isoformat()
             event = {'match_id': match_id, 'score': score, 'title': title, 'message': txt, 'datetime': now}
-            # db.add(event)
             producer.send(topic="livetext", key=event['match_id'], value=event)
             producer.flush()
             st.toast(f"{now}: Your message was published", icon='😍')
