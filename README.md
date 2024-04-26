@@ -125,6 +125,12 @@ Install Python dependencies
 poetry install
 ```
 
+Configure OpenAI API key
+
+```bash
+export OPENAI_API_KEY="sk-xxx"
+```
+
 Start commentator app
 
 ```bash
