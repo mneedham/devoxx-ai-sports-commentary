@@ -78,7 +78,7 @@ if sets:
 
     if generate_ai:
         st.session_state.show = True
-        st.experimental_rerun()
+        st.rerun()
 
 with right:
     if st.button('Publish', type="primary"):

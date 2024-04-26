@@ -21,9 +21,114 @@ An example of what the live page should look like:
 
 https://www.bbc.co.uk/sport/live/tennis/66006317/page/4
 
+## Instructions
+
+Start Redpanda
 
 ```bash
-poetry run python publish_events.py | 
-jq -cr --arg sep 😊 '[.eventId, tostring] | join($sep)' |
-kcat -P -b localhost:9092 -t events -K😊
+docker compose up
 ```
+
+Download ClickHouse
+
+```bash
+curl https://clickhouse.com/ | sh
+```
+
+On another tab, configure ClickHouse Server
+
+```bash
+mkdir clickhouse-server && cd clickhouse-server
+```
+
+Copy `matches.csv` over
+
+```bash
+cp ../data/matches.csv user_files
+```
+
+Connect with ClickHouse Client
+
+```bash
+./clickhouse client -mn
+```
+
+Setup ClickHouse tables
+
+```sql
+CREATE TABLE pointsQueue(
+    match_id String,
+    id String,
+    time String,
+    player1 String,
+    player2 String,
+    previous_sets Array(String),
+    server String,
+    set String,
+    game String,
+    set_score String,
+    point_score String,
+    description String,
+    game_winner String,
+    publish_time String,
+    event_type String,
+    event_round String
+)
+ENGINE = Kafka(
+  'localhost:9092', 
+  'points', 
+  'points-consumer-group', 
+  'JSONEachRow'
+)
+SETTINGS kafka_flush_interval_ms=500;
+
+CREATE TABLE points (
+    match_id String,
+    id String,
+    time String,
+    player1 String,
+    player2 String,
+    previous_sets Array(String),
+    server String,
+    set String,
+    game String,
+    set_score String,
+    point_score String,
+    description String,
+    game_winner String,
+    publish_time DateTime32,
+    event_type String,
+    event_round String,
+) 
+ENGINE = MergeTree 
+ORDER BY match_id;
+
+CREATE MATERIALIZED VIEW points_mv TO points AS 
+SELECT * REPLACE(
+    parseDateTime32BestEffort(publish_time) AS publish_time
+)
+FROM pointsQueue;
+
+
+CREATE TABLE matches
+ORDER BY match_id AS
+SELECT * REPLACE(
+    toString(match_id) AS match_id
+)
+FROM file('matches.csv') 
+SETTINGS schema_inference_make_columns_nullable=0;
+```
+
+Install Python dependencies
+
+```bash
+poetry install
+```
+
+Start commentator app
+
+```bash
+poetry run streamlit run apps/commentator.py --server.headless true
+```
+
+Navigate to http://localhost:8501
