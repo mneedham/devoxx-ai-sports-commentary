@@ -1,2 +1,6 @@
 .env
+clickhouse-server
+devoxx.chdb
+.idea
+**/__pycache__
 data/*.html
