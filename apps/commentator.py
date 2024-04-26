@@ -10,6 +10,13 @@ import queries
 from kafka import KafkaProducer
 import json
 
+client = clickhouse_connect.get_client(host='localhost')
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+    key_serializer=str.encode
+)
+
 if "show" not in st.session_state:
     st.session_state.show = False
 st.session_state.current_message = st.session_state.get('current_message', '')
@@ -24,38 +31,31 @@ hr {
 
 streamlit_float.float_init()
 
-client = clickhouse_connect.get_client(host='localhost')
-producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',
-    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-    key_serializer=str.encode
-)
-
 st.title("Live Text Commentary Admin Centre")
 
-matches = client.query_df("""
-select match_id, p1_name, p2_name
-FROM matches
-""")
+matches = client.query_df(queries.matches_query)
 
 match_id = st.selectbox(
     "Select match", 
     options=matches['match_id'],
     format_func=lambda x: f"{matches[matches.match_id == x]['p1_name'].values[0]} vs {matches[matches.match_id == x]['p2_name'].values[0]}"
 )
+parameters = {'match_id': f"{match_id}"}
 
 st.write("***")
 
-parameters = {'match_id': f"{match_id}"}
-
 score_result = client.query_df(queries.score_query, parameters)
 
-p1 = score_result.p1_name.values[0]
-p2 = score_result.p2_name.values[0]
+def extract_score(score_result):
+    p1 = score_result.p1_name.values[0]
+    p2 = score_result.p2_name.values[0]
 
-current_set = score_result.set_score.values[0]
-sets = ", ".join(score_result.previous_sets.values[0] + [current_set])
-score = f"{p1} {sets or 'vs'} {p2}"
+    current_set = score_result.set_score.values[0]
+    sets = ", ".join(score_result.previous_sets.values[0] + [current_set])
+    score = f"{p1} {sets or 'vs'} {p2}"
+    return sets, score
+
+sets, score = extract_score(score_result)
 details = f"{score_result.event_type.values[0]} {score_result.event_round.values[0]} "
 
 st.write(f"""#### Match Score
@@ -64,9 +64,7 @@ st.write(f"""#### Match Score
 """)
 
 st.write("#### Live Text Entry")
-
 title = st.text_input('Message title', placeholder="Optional title for live text entry.")
-
 txt = st.text_area(
     "Next message",
     key="current_message",
@@ -101,22 +99,28 @@ if sets:
     )
     with popup:
         st.header("Generate message with AI")
-        option = st.selectbox('Type of message',('Game summary', 'Set summary'))
+        option = st.selectbox('Type of message',('Last Game summary', 'Last 5 minutes'))
         left, right, _ = st.columns([1,1,2], gap="small")
         with left:
             generate = st.button("Generate", disabled="ai_message" in st.session_state, key="run_button", type="primary")
         if generate:
             st.write("***")
             with st.spinner("Generating message"):
-                latest_game = client.query_df(queries.latest_game_query, parameters)
-                latest_events = [row.to_dict() for idx, row in latest_game.iterrows()]
+                if option == "Last Game summary":
+                    query_response = client.query_df(queries.latest_game_query, parameters)
+                elif option == "Last 5 minutes":
+                    query_response = client.query_df(queries.recent_query, parameters)
 
-                response = call_llm(latest_events, stream=False, model="gpt-3.5-turbo")
-                message = response.choices[0].message.content
+                latest_events = [row.to_dict() for idx, row in query_response.iterrows()]
 
-                st.session_state.ai_message = message
-                st.rerun()
+                if latest_events:
+                    response = call_llm(latest_events, stream=False, model="gpt-3.5-turbo")
+                    message = response.choices[0].message.content
+                    st.session_state.ai_message = message
+                    st.rerun()
 
+                else:
+                    st.error("No events found")
         with right:
             if st.button("Close", key="close_message"):
                 st.session_state.show = False

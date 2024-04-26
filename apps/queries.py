@@ -1,3 +1,8 @@
+matches_query = """
+select match_id, p1_name, p2_name
+FROM matches
+"""
+
 score_query = """
 SELECT
     matches.* EXCEPT(match_id),
@@ -28,5 +33,12 @@ INNER JOIN
     LIMIT 1
 ) AS latestPoint ON (latestPoint.set = points.set) AND (latestPoint.game = points.game)
 WHERE match_id = %(match_id)s
+ORDER BY id
+"""
+
+recent_query = """
+SELECT points.* EXCEPT (match_id, id, publish_time)
+FROM points
+WHERE match_id = %(match_id)s AND (now() - 60) < publish_time
 ORDER BY id
 """

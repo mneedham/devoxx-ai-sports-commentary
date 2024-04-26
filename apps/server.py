@@ -14,7 +14,7 @@ async def startup_event():
   consumer = AIOKafkaConsumer(
     'livetext',
     bootstrap_servers='localhost:9092',
-    group_id="demo-group952",
+    group_id="demo-dunith-mark",
     auto_offset_reset='earliest',
     value_deserializer=lambda x: x.decode('utf-8')
   )
@@ -33,7 +33,7 @@ async def livetext(request: Request):
       try:
         async for msg in consumer:
           yield f"{msg.value}\n\n"
-          await asyncio.sleep(STREAM_DELAY)
+        await asyncio.sleep(STREAM_DELAY)
       except Exception as e:
         yield f"data: Error - {str(e)}\n\n"
         break
