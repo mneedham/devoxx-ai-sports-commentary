@@ -3,9 +3,10 @@ from twisted.internet import task, reactor
 import jsonlines
 import datetime as dt
 import json
+import click
 
 def emit_events():
-    global producer
+    global producer, events
 
     to_publish = [
         event 
@@ -36,16 +37,20 @@ def ebLoopFailed(failure):
     reactor.stop()
 
 
-if __name__ == "__main__":
-    loop_frequency = 1.0
-    speed_up_factor = 20.0
+@click.command()
+@click.option('--loop-frequency', default=1.0, help='Every how often should the ingestion loop run (in seconds)')
+@click.option('--speed-up-factor', default=20.0, help='Event generation speedup.')
+@click.option('--file', default="data/1602.json", help='File to ingest.')
+def run(loop_frequency, speed_up_factor, file):
+    global producer, events
+    
     producer = KafkaProducer(
         bootstrap_servers='localhost:9092',
         value_serializer=lambda v: json.dumps(v).encode('utf-8'),
         key_serializer=str.encode
     )
 
-    with jsonlines.open('data/1602.json') as reader:
+    with jsonlines.open(file) as reader:
         events = [row for row in reader]
 
     now = dt.datetime.now()
@@ -64,3 +69,8 @@ if __name__ == "__main__":
     loopDeferred.addErrback(ebLoopFailed)
 
     reactor.run()
+
+
+
+if __name__ == "__main__":
+    run()

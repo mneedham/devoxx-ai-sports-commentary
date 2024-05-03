@@ -28,6 +28,7 @@ fastapi = "^0.110.2"
 uvicorn = "^0.29.0"
 sse-starlette = "^2.1.0"
 aiokafka = "^0.10.0"
+click = "^8.1.7"
 
 
 [build-system]
