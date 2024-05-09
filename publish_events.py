@@ -4,9 +4,13 @@ import jsonlines
 import datetime as dt
 import json
 import click
+from functools import partial
 
-def emit_events():
-    global producer, events
+# Timeout in seconds after which the script will exit if no new events are published
+TIMEOUT_SECONDS = 60  # Example timeout period of 5 minutes
+
+def emit_events(timeout):
+    global producer, events, last_publish_time
 
     to_publish = [
         event 
@@ -19,30 +23,31 @@ def emit_events():
         print(event)
         producer.send(topic="points", key=event['id'], value=event)        
         event["published"] = True
+        last_publish_time = dt.datetime.now()  # Update last publish time on event publish
     producer.flush()
 
+    # Check if the timeout has been reached
+    if (dt.datetime.now() - last_publish_time).total_seconds() > timeout:
+        print("Timeout reached with no new events. Exiting...")
+        reactor.stop()
+
 def cbLoopDone(result):
-    """ 
-    Called when loop was stopped with success.
-    """
     print("Loop done.")
     reactor.stop()
 
-
 def ebLoopFailed(failure):
-    """
-    Called when loop execution failed.
-    """
     print(failure.getBriefTraceback())
     reactor.stop()
-
 
 @click.command()
 @click.option('--loop-frequency', default=1.0, help='Every how often should the ingestion loop run (in seconds)')
 @click.option('--speed-up-factor', default=20.0, help='Event generation speedup.')
+@click.option('--timeout', default=30.0, help='Timeout period.')
 @click.option('--file', default="data/1602.json", help='File to ingest.')
-def run(loop_frequency, speed_up_factor, file):
-    global producer, events
+def run(loop_frequency, speed_up_factor, timeout, file):
+    global producer, events, last_publish_time
+
+    TIMEOUT_SECONDS = timeout
     
     producer = KafkaProducer(
         bootstrap_servers='localhost:9092',
@@ -54,23 +59,21 @@ def run(loop_frequency, speed_up_factor, file):
         events = [row for row in reader]
 
     now = dt.datetime.now()
+    last_publish_time = now  # Initialize last publish time
     for event in events:
         hours, minutes, seconds = [int(value) for value in event["time"].split(":")]
-
         cumulative_seconds = ((60*60*hours) + (60*minutes) + seconds) / speed_up_factor
         publish_time = now + dt.timedelta(seconds = cumulative_seconds)
 
         event["potential_publish_time"] = publish_time.isoformat()
         event["published"] = False
 
-    l = task.LoopingCall(emit_events)
+    l = task.LoopingCall(partial(emit_events, timeout))
     loopDeferred = l.start(loop_frequency)
     loopDeferred.addCallback(cbLoopDone)
     loopDeferred.addErrback(ebLoopFailed)
 
     reactor.run()
-
-
 
 if __name__ == "__main__":
     run()

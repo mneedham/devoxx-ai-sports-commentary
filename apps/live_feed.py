@@ -13,9 +13,16 @@ st.session_state["messages"] = SSEClient(url)
 placeholder = st.empty()
 
 with placeholder.container():
-  for msg in st.session_state["messages"]:
+  for msg in st.session_state["messages"]:      
       if msg.data:
-        st.write(json.loads(msg.data))
+        event = json.loads(msg.data)
+        title_display = f"##### {event['title']}" if event['title'] else ""
+        st.info(f"""
+        {title_display}
+        _{event['datetime']}_  
+        {event['score']}  \n
+        {event['message']}
+        """)
 
 # import streamlit as st
 # import json

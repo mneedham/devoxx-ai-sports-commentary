@@ -39,6 +39,7 @@ On another tab, configure ClickHouse Server
 
 ```bash
 mkdir clickhouse-server && cd clickhouse-server
+./clickhouse server
 ```
 
 Copy `matches.csv` over
