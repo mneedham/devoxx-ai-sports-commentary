@@ -55,13 +55,24 @@ def extract_score(score_result):
     score = f"{p1} {sets or 'vs'} {p2}"
     return sets, score
 
-sets, score = extract_score(score_result)
-details = f"{score_result.event_type.values[0]} {score_result.event_round.values[0]} "
+sets = None
+score = None
 
-st.write(f"""#### Match Score
-**{score}**  
-{details}
-""")
+@st.experimental_fragment(run_every=1)
+def refresh_score():
+    global sets, score
+    score_result = client.query_df(queries.score_query, parameters)
+    sets, score = extract_score(score_result)
+    details = f"{score_result.event_type.values[0]} {score_result.event_round.values[0]} "
+    st.write(f"""**{score}**  
+{details}""")
+    
+
+# sets, score = extract_score(score_result)
+# details = f"{score_result.event_type.values[0]} {score_result.event_round.values[0]} "
+
+st.write(f"""#### Match Score""")
+refresh_score()
 
 st.write("#### Live Text Entry")
 title = st.text_input('Message title', placeholder="Optional title for live text entry.")
